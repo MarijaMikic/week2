@@ -42,9 +42,11 @@ describe("MerkleTree", function () {
           });
         merkleTree = await MerkleTree.deploy();
         await merkleTree.deployed();
+        //console.log(merkleTree);
     });
 
     it("Insert two new leaves and verify the first leaf in an inclusion proof", async function () {
+        //console.log(merkleTree);
         await merkleTree.insertLeaf(1);
         await merkleTree.insertLeaf(2);
 
@@ -70,7 +72,41 @@ describe("MerkleTree", function () {
         const input = argv.slice(8);
 
         expect(await merkleTree.verify(a, b, c, input)).to.be.true;
-
-        // [bonus] verify the second leaf with the inclusion proof
     });
+        // [bonus] verify the second leaf with the inclusion proof
+        it("verify the second leaf with the inclusion proof", async function () {
+            //console.log(merkleTree);
+            await merkleTree.insertLeaf(1);
+            await merkleTree.insertLeaf(2);
+            
+            //const node0 = (await merkleTree.hashes(0)).toString();
+            const node9 = (await merkleTree.hashes(9)).toString();
+            const node13 = (await merkleTree.hashes(13)).toString();
+            //console.log(node0);
+
+        Input = {
+            "leaf": "2",
+            "path_elements": ["1", node9, node13],
+            "path_index": ["1", "0", "0"]
+        }
+        const { proof, publicSignals } = await groth16.fullProve(Input, "circuits/circuit_js/circuit.wasm","circuits/circuit_final.zkey");
+
+        const editedPublicSignals = unstringifyBigInts(publicSignals);
+        const editedProof = unstringifyBigInts(proof);
+        const calldata = await groth16.exportSolidityCallData(editedProof, editedPublicSignals);
+    
+        const argv = calldata.replace(/["[\]\s]/g, "").split(',').map(x => BigInt(x).toString());
+    
+        a = [argv[0], argv[1]];
+        b = [[argv[2], argv[3]], [argv[4], argv[5]]];
+        c = [argv[6], argv[7]];
+        input = argv.slice(8);
+
+        expect(await merkleTree.verify(a, b, c, input)).to.be.true;
+
+       
+
+    });
+
+    
 });
